@@ -53,6 +53,7 @@ impl Screen {
         }
     }
 
+    //reset the screen to effectively restart the game
     pub fn reset(&mut self) {
         let mut screen: Vec<Vec<usize>> = vec![vec![0; self.wid]; self.hei];
         for c in &mut screen[0] {
@@ -70,6 +71,7 @@ impl Screen {
         self.ended = false;
     }
 
+    //update the screen(managing player, getting next frame)
     pub fn update(&mut self) {
         let _ = self.print();
 
@@ -94,6 +96,7 @@ impl Screen {
         self.check();
     }
 
+    //getting next frame by constructing a new col, and moving all cols 1 to the left
     fn next(&mut self) {
         for i in 0..self.screen.len() {
             for j in 0..self.screen[i].len()-1 {
@@ -107,28 +110,38 @@ impl Screen {
                 self.counter = 0;
                 self.midp = false;
                 for i in 1..self.hei-1 {
-                    if place && (self.screen[i][self.wid-2] == 0 || self.screen[i][self.wid-2] == 5) {
-                        self.screen[i][self.wid-1] = 2;
+                    //the tile to the left of the current-to-be-decided tile
+                    let left = self.screen[i][self.wid-2];
+                    //mut ref of current tile
+                    let cur = &mut self.screen[i][self.wid-1];
+
+                    if place && (left == 0 || left == 5) {
+                        *cur = 2;
                     }
                     else {
-                        self.screen[i][self.wid-1] = 0;
+                        *cur = 0;
                     }
-                    if self.screen[i][self.wid-2] == 1 {
-                        self.screen[i][self.wid-1] = 4;
+                    if left == 1 {
+                        *cur = 4;
                         place = !place;
                     }
                 }
             }
             else {
                 for i in 1..self.hei-1 {
-                    if self.screen[i][self.wid-2] == 4 || self.screen[i][self.wid-2] == 1 {
-                        self.screen[i][self.wid-1] = 1;
+                    //the tile to the left of the current-to-be-decided tile
+                    let left = self.screen[i][self.wid-2];
+                    //mut ref of current tile
+                    let cur = &mut self.screen[i][self.wid-1];
+
+                    if left == 4 || left == 1 {
+                        *cur = 1;
                     }
-                    else if self.screen[i][self.wid-2] == 2 || self.screen[i][self.wid-2] == 5{
-                        self.screen[i][self.wid-1] = 5;
+                    else if left == 2 || left == 5{
+                        *cur = 5;
                     }
                     else {
-                        self.screen[i][self.wid-1] = 0;
+                        *cur = 0;
                     }
                 }
             }
@@ -139,18 +152,22 @@ impl Screen {
                 self.midp = true;
 
                 let mut rng = rand::thread_rng();
+                //the opening's size for a single piller
                 let blank = 8;
                 let randr: usize = rng.gen_range(1..self.hei-1-blank);
 
                 for i in 1..self.hei-1 {
+                    //mut ref of current tile
+                    let cur = &mut self.screen[i][self.wid-1];
+
                     if i > randr && i < randr+blank {
-                        self.screen[i][self.wid-1] = 0;
+                        *cur = 0;
                     }
                     else if i == randr || i == randr+blank {
-                        self.screen[i][self.wid-1] = 4;
+                        *cur = 4;
                     }
                     else {
-                        self.screen[i][self.wid-1] = 2;
+                        *cur = 2;
                     }
                 }
             }
@@ -162,6 +179,7 @@ impl Screen {
         }
     }
 
+    //whether player hit a wall/bound
     fn check(&mut self) {
         if self.py == 0 || self.py == self.hei-1 {
             self.ended = true;
@@ -171,6 +189,7 @@ impl Screen {
         self.ended = self.screen[self.hei-1-self.py][self.px] != 0
     }
 
+    //printing to terminal
     pub fn print(&self) -> io::Result<()> {
         let mut stdout = io::stdout();
         stdout.execute(terminal::Clear(terminal::ClearType::All))?;
@@ -180,43 +199,29 @@ impl Screen {
                 {
                     if i == self.hei-1-self.py && j == self.px {
                         if self.ended {
-                            stdout
-                                .queue(cursor::MoveTo(j as u16, i as u16))?
-                                .queue(style::Print("%"))?;
+                            let _ = mvprint(j, i, "%");
                         }
                         else {
-                            stdout
-                                .queue(cursor::MoveTo(j as u16, i as u16))?
-                                .queue(style::Print("*"))?;
+                            let _ = mvprint(j, i, "*");
                         }
                         continue;
                     }
                 }
                 match col {
                     1 => {
-                        stdout
-                            .queue(cursor::MoveTo(j as u16, i as u16))?
-                            .queue(style::Print("-"))?;
+                        let _ = mvprint(j, i, "-");
                     }
                     2 => {
-                        stdout
-                            .queue(cursor::MoveTo(j as u16, i as u16))?
-                            .queue(style::Print("|"))?;
+                        let _ = mvprint(j, i, "|");
                     }
                     3 => {
-                        stdout
-                            .queue(cursor::MoveTo(j as u16, i as u16))?
-                            .queue(style::Print("*"))?;
+                        let _ = mvprint(j, i, "*");
                     }
                     4 => {
-                        stdout
-                            .queue(cursor::MoveTo(j as u16, i as u16))?
-                            .queue(style::Print("+"))?;
+                        let _ = mvprint(j, i, "+");
                     }
                     5 => {
-                        stdout
-                            .queue(cursor::MoveTo(j as u16, i as u16))?
-                            .queue(style::Print("X"))?;
+                        let _ = mvprint(j, i, "X");
                     }
                     _ => {}
                 }
@@ -224,19 +229,24 @@ impl Screen {
         }
 
         if self.ended {
-            stdout
-                .queue(cursor::MoveTo(0, 0))?
-                .queue(style::Print("!!!  PRESS 'R' TO RESTART  !!!"))?;
-            stdout
-                .queue(cursor::MoveTo(0, self.hei as u16 - 1))?
-                .queue(style::Print("!!!   PRESS 'Q' TO QUIT   !!!"))?;
+            let _ = mvprint(0, 0, "!!!  PRESS 'R' TO RESTART  !!!");
+            let _ = mvprint(0, self.hei - 1, "!!!   PRESS 'Q' TO QUIT   !!!");
         }
 
         stdout.flush()?;
         Ok(())
     }
 
+
     pub fn mvt(&mut self) {
         self.v = 2.7;
     }
+}
+
+fn mvprint(x: usize, y: usize, content: &str) -> io::Result<()> {
+    let mut stdout = io::stdout();
+    stdout
+        .queue(cursor::MoveTo(x as u16, y as u16))?
+        .queue(style::Print(content))?;
+    Ok(())
 }
